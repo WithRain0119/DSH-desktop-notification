@@ -1,0 +1,40 @@
+{
+  "name": "claude-bell",
+  "version": "0.1.0",
+  "description": "Claude Code CLI 桌面/邮件通知工具",
+  "main": "src/index.js",
+  "bin": {
+    "claude-bell": "./bin/claude-bell.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "audio",
+    "config/default.json"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WithRain0119/ClaudeBell.git"
+  },
+  "keywords": [
+    "claude-code",
+    "notification",
+    "desktop-notification",
+    "email",
+    "cli"
+  ],
+  "author": "Changenming",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/WithRain0119/ClaudeBell/issues"
+  },
+  "homepage": "https://github.com/WithRain0119/ClaudeBell#readme",
+  "dependencies": {
+    "commander": "^15.0.0",
+    "nodemailer": "^10.0.15"
+  }
+}
