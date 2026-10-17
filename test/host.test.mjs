@@ -48,6 +48,29 @@ const config = {
 const listeners = new Map();
 const commands = [];
 let nestedCalls = 0;
+
+// 会话 / 工作区 / 标题：模拟 Host 的 sessions、workspaceRegistry、sessionTitle 三个服务
+const CWD = 'E:\\claude code\\Project\\DSH-desktop-notification';
+const sessionsById = new Map([
+  ['session-a', { id: 'session-a', header: { cwd: CWD } }],
+  ['session-b', { id: 'session-b', header: { cwd: CWD } }],
+  ['session-quiet', { id: 'session-quiet', header: { cwd: 'E:\\somewhere\\unknown-project' } }],
+]);
+const titles = new Map([
+  ['session-a', { title: '改插件设置页' }],
+  ['session-b', { title: '别的对话' }],
+]);
+const services = {
+  sessions: { get: (id) => sessionsById.get(id) },
+  sessionTitle: { get: (session) => titles.get(session?.id) },
+  workspaceRegistry: {
+    list: () => [
+      // 这台机器上真实的工作区标题就是文件夹名
+      { id: 'ws-1', path: CWD, title: 'DSH-desktop-notification', sessionIds: ['session-a', 'session-b'] },
+    ],
+  },
+};
+
 const ctx = {
   on: (event, handler) => {
     const list = listeners.get(event) ?? [];
@@ -55,6 +78,7 @@ const ctx = {
     listeners.set(event, list);
     return () => {};
   },
+  get: (key) => services[key],
   inject: (_deps, callback) => {
     nestedCalls += 1;
     callback({
@@ -100,7 +124,10 @@ emit('agent/status', { agent: { id: 'session-a' }, status: 'running' });
 emit('agent/status', { agent: { id: 'session-a' }, status: 'idle' });
 await new Promise((resolve) => setTimeout(resolve, 20));
 assert(dispatchLines().length === 1 && dispatchLines()[0].includes('[task_complete]'), 'running → idle 通知任务完成');
-assert(dispatchLines()[0].includes('会话 a'), '通知里带上会话短码');
+assert(
+  dispatchLines()[0].includes('@ DSH-desktop-notification › 改插件设置页'),
+  '通知标注了工作区 › 对话（而不是看不懂的会话短码）',
+);
 
 // 3) 重复 idle：不重复通知
 clearLines();
@@ -169,6 +196,47 @@ assert(
   '/notify-test 对已关闭的事件类型仍然强制发送（不再被 events.error 拦住）',
 );
 assert(dispatchLines().length === 1 && dispatchLines()[0].includes('[error]'), '/notify-test error 走到了 error 分支');
+assert(
+  dispatchLines()[0].includes('@ DSH-desktop-notification › 改插件设置页'),
+  '/notify-test 也标注当前工作区 › 对话',
+);
+
+// 8b) 目录不属于任何注册工作区：退回文件夹名，且没有对话标题时不硬凑
+clearLines();
+emit('agent/status', { agent: { id: 'session-quiet' }, status: 'running' });
+emit('agent/status', { agent: { id: 'session-quiet' }, status: 'idle' });
+await new Promise((resolve) => setTimeout(resolve, 20));
+assert(
+  dispatchLines().length === 1 && dispatchLines()[0].includes('@ unknown-project'),
+  '未注册的目录退回文件夹名',
+);
+assert(!dispatchLines()[0].includes('›'), '没有对话标题时不输出空的「›」');
+
+// 8b2) 连会话都查不到：完全不加标注，也不报错
+clearLines();
+emit('agent/status', { agent: { id: 'session-missing' }, status: 'running' });
+emit('agent/status', { agent: { id: 'session-missing' }, status: 'idle' });
+await new Promise((resolve) => setTimeout(resolve, 20));
+assert(dispatchLines().length === 1 && !dispatchLines()[0].includes('@'), '信息全无时安静降级，不留 @ 尾巴');
+
+// 8c) 通知正文/邮件的排版（纯函数，直接断言）
+{
+  const { popupBody, mailSubject, mailBody } = await import('../lib/notify.js');
+  const target = { workspace: 'DSH-desktop-notification', conversation: '改插件设置页', sessionId: 'session-a' };
+  assert(
+    popupBody('工具 bash 等你确认', target) === 'DSH-desktop-notification › 改插件设置页\n工具 bash 等你确认',
+    '弹窗正文：第一行工作区 › 对话，第二行事件细节',
+  );
+  assert(
+    mailSubject('DSH 任务完成', target) === 'DSH 任务完成 · DSH-desktop-notification › 改插件设置页',
+    '邮件标题带上工作区与对话',
+  );
+  const body = mailBody('task_complete', '任务已完成', target, new Date(2026, 9, 17, 13, 20, 0));
+  assert(body.includes('工作区：DSH-desktop-notification') && body.includes('对话：改插件设置页'), '邮件正文列出工作区与对话');
+  assert(body.includes('时间：2026-10-17 13:20:00'), '邮件正文带时间');
+  assert(body.includes('会话：session-a'), '邮件正文带会话 id');
+  assert(popupBody('只有细节', undefined) === '只有细节', '没有 target 时弹窗正文保持原文');
+}
 
 // 9) 设置里改值立即生效（volatile 引用被 Loader 就地更新）
 config.events.taskComplete = ref(false);

@@ -34,6 +34,8 @@ const USAGE = `dsh-desktop-notification — DSH 通知插件自测工具
   --mail                同时发送邮件，需要这些环境变量：
                         SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM MAIL_TO
   --message <文本>      自定义通知正文
+  --workspace <名称>    模拟「工作区」标注（卡片第一行会写 工作区 › 对话）
+  --conversation <标题> 模拟「对话」标注
   -h, --help            显示本帮助
 
 日志目录: ${resolveLogDir()}
@@ -74,6 +76,9 @@ async function main() {
   const timeout = Number(flagValue(argv, '--timeout') ?? 10);
   const message = flagValue(argv, '--message') ?? '这是一条 dsh-desktop-notification 测试通知';
   const withMail = argv.includes('--mail');
+  const workspace = flagValue(argv, '--workspace');
+  const conversation = flagValue(argv, '--conversation');
+  const target = workspace || conversation ? { workspace, conversation } : undefined;
 
   const config = {
     desktop: { enabled: true, sound, timeoutSec: Number.isFinite(timeout) ? timeout : 10 },
@@ -81,7 +86,7 @@ async function main() {
     mail: withMail ? mailFromEnv() : { enabled: false },
   };
 
-  const result = await notify(eventType, message, config);
+  const result = await notify(eventType, message, config, { target });
   console.log(`\n事件: ${eventType}  标题: ${result.title}`);
   console.log(`桌面弹窗: ${result.desktop ? '已发送' : '未发送'}`);
   console.log(`邮件通知: ${withMail ? (result.mail ? '已发送' : '未发送（检查 SMTP_* 环境变量）') : '未开启'}`);
