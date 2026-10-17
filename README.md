@@ -47,9 +47,24 @@ kind: "package-reference"
 
 **方式一：从 Releases 下载 `.tgz`（推荐，最省事）。** 在 [Releases](../../releases) 页下载 `dsh-desktop-notification-<version>.tgz`（或 `.tar.gz`，两者等价），保存到任意目录；打开侧边栏 **插件** 页 → **添加插件** → 把 tgz 的**绝对路径**粘进输入框 → **安装**。
 
+不想先下载也可以：直接把 Release 资产的链接粘进安装框——DSH 把以 `.tgz` / `.tar.gz` 结尾的 URL 当作 tarball 处理，由 pnpm 直接下载（把 `v0.2.0` 换成要装的版本）：
+
+```
+https://github.com/WithRain0119/DSH-desktop-notification/releases/download/v0.2.0/dsh-desktop-notification-0.2.0.tgz
+```
+
 DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-desktop-notification`）并自动启用；pnpm 会**连插件依赖一起装好**，不需要你手动 `npm install`。
 
-**方式二：填本地仓库目录。** 适合自己改代码调试。先装依赖——DSH 安装本地目录时走 pnpm 的 `link:`（软链接），**不会**替你安装插件目录里的依赖；缺依赖时 Host 半部会在导入 `@deepseek-ai/schemastery` 处失败，插件页只显示一句 `failed to import`：
+**方式二：填仓库地址（需能连 GitHub）。** 在 **添加插件** 里直接填仓库地址，装的是该分支的最新提交，依赖同样自动安装：
+
+```
+https://github.com/WithRain0119/DSH-desktop-notification          # 跟 main 走
+https://github.com/WithRain0119/DSH-desktop-notification#v0.2.0   # 固定到某个 tag
+```
+
+> 走 git 时 DSH 先做一次 `git ls-remote` 可达性检查（默认 5 秒超时），网络不通会提示「Cannot access GitHub」；弹窗里的镜像选项只替换 npm registry，不解决 git 连通性。仓库必须公开，否则 pnpm 没有凭据可克隆。
+
+**方式三：填本地仓库目录。** 适合自己改代码调试。先装依赖——DSH 安装本地目录时走 pnpm 的 `link:`（软链接），**不会**替你安装插件目录里的依赖；缺依赖时 Host 半部会在导入 `@deepseek-ai/schemastery` 处失败，插件页只显示一句 `failed to import`：
 
 ```powershell
 # 在克隆下来的仓库根目录（含 package.json 的那一层）执行
@@ -60,7 +75,7 @@ npm install
 
 > 本插件暂不经 npm 分发；克隆或解压到任意目录都可以，路径里带空格与中文不影响。
 
-**方式三：手动软链接（开发用）。**
+**方式四：手动软链接（开发用）。**
 
 ```powershell
 # 在仓库根目录执行
