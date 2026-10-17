@@ -21,6 +21,7 @@ kind: "package-reference"
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
+- [License](#license)
 
 -----
 
@@ -37,7 +38,8 @@ kind: "package-reference"
 
 | 项 | 要求 |
 |---|---|
-| DSH 桌面端 | 本插件在 `0.2.0-rc.2` 上开发与验证 |
+| 插件版本 | `0.2.0` |
+| DSH 桌面端 | 在 `0.2.0-rc.2` 上开发与验证 |
 | 操作系统 | Windows 10/11（弹窗依赖 PowerShell + WinForms；其他平台只能走邮件） |
 | Node.js | 18+，仅用于安装插件依赖与运行自测脚本 |
 
@@ -46,18 +48,20 @@ kind: "package-reference"
 **第 0 步：先装插件自己的依赖。** DSH 安装本地路径插件时使用 pnpm 的 `link:`（软链接），**不会**替你安装插件目录里的依赖；缺依赖时 Host 半部会在导入 `@deepseek-ai/schemastery` 处失败，插件页只显示一句 `failed to import`。
 
 ```powershell
-cd "E:\claude code\Project\DSH-desktop-notification"
+# 在克隆下来的仓库根目录（含 package.json 的那一层）执行
 npm install
 ```
 
-**方式一：在 DSH 里安装（推荐）。** 打开侧边栏 **插件** 页 → **添加插件** → 在包名输入框填本目录的绝对路径 → **安装**。DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-desktop-notification`）并自动启用。
+**方式一：在 DSH 里安装（推荐）。** 打开侧边栏 **插件** 页 → **添加插件** → 在包名输入框填本仓库根目录的绝对路径（即上一步 `npm install` 所在目录）→ **安装**。DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-desktop-notification`）并自动启用。
+
+> 本插件目前**不经 npm 分发**，请按本地路径安装；把仓库克隆或解压到任意目录都可以，路径里带空格与中文不影响。
 
 **方式二：手动软链接（开发用）。**
 
 ```powershell
-$profile = "C:\Users\<你>\.dsh\profiles\desktop"
-New-Item -ItemType Junction -Path "$profile\node_modules\dsh-desktop-notification" `
-  -Target "E:\claude code\Project\DSH-desktop-notification"
+# 在仓库根目录执行
+$profile = Join-Path $HOME '.dsh\profiles\desktop'
+New-Item -ItemType Junction -Path "$profile\node_modules\dsh-desktop-notification" -Target (Get-Location)
 # 并在 $profile\package.json 的 dsh.profile.bundles 里加入 "dsh-desktop-notification"
 ```
 
@@ -163,7 +167,7 @@ node bin/dsh-notify-test.js test --mail                                   # 连�
 按日期分割，位于 DSH 主目录下：
 
 ```
-C:\Users\<你>\.dsh\logs\notify-desktop-2026-10-17.log
+<DSH_HOME>/logs/notify-desktop-YYYY-MM-DD.log      # DSH_HOME 默认 ~/.dsh
 ```
 
 - 目录由 `DSH_HOME`（默认 `~/.dsh`）推导，也可用环境变量 `DSH_NOTIFY_LOG_DIR` 直接指定；
@@ -182,6 +186,31 @@ C:\Users\<你>\.dsh\logs\notify-desktop-2026-10-17.log
 | 邮件 `ETIMEDOUT` / `ECONNREFUSED` | 端口与加密方式不匹配（QQ/163 用 465 + SSL），或网络屏蔽 SMTP |
 | 邮件 `Mail from must equal authorized user` | `mail.from` 必须与 `mail.smtpUser` 一致 |
 | 日志显示已发送但没收到 | 查垃圾邮件箱；换一个收件邮箱再试 |
+
+### Upgrade and uninstall
+
+本插件按本地路径安装，没有自动更新。
+
+**升级**（在仓库根目录）：
+
+```powershell
+git pull
+npm install      # 依赖有变化时需要
+```
+
+然后重启 DSH 桌面端。Host 半部的代码改动只有重启才生效；Client 半部（设置页）会被 HMR 在约 500ms 内热替换，刷新页面即可看到。
+
+**卸载**：在插件页找到 `dsh-desktop-notification` → 卸载；或手动执行：
+
+```powershell
+$profile = Join-Path $HOME '.dsh\profiles\desktop'
+# 1) 从 $profile\package.json 的 dsh.profile.bundles 里删掉 "dsh-desktop-notification"
+# 2) 删掉软链接（cmd /c rmdir 只删链接本身，不会影响仓库目录）
+cmd /c rmdir "$profile\node_modules\dsh-desktop-notification"
+# 3) 清掉 $profile\cordis.patch.yml 里 id: notify-desktop 的那一段（保存过的设置也一起清掉）
+```
+
+`<DSH_HOME>/logs/` 下已生成的 `notify-desktop-*.log` 可自行删除。
 
 -----
 
@@ -317,7 +346,7 @@ None；本插件不参与请求组装，也不改变请求前缀。
 
 Host 测试用最小 `ctx` 桩（`on` / `get` / `inject`）与三个假服务（`sessions`、`sessionTitle`、`workspaceRegistry`）；Client 测试用最小 React 桩（`useState` / `useCallback` / `useEffect` / `useSyncExternalStore`）把组件递归展开成元素树再断言，全程不打真实网络、不弹窗。
 
-**手动验收配方。** 不动正在使用的实例：把 profile 复制成临时 profile（只复制 `package.json`、`cordis.patch.yml`、`cordis.yml`、lock 文件），在其中给插件建 junction，然后用桌面端自带的 CLI 启动（未加入 PATH 时用 `D:\dsh-desktop\resources\runtime\cli\bin\dsh.cmd`）：
+**手动验收配方。** 不动正在使用的实例：把 profile 复制成临时 profile（只复制 `package.json`、`cordis.patch.yml`、`cordis.yml`、lock 文件），在其中给插件建 junction，然后用桌面端自带的 CLI 启动（未加入 `PATH` 时用安装目录下的 `resources/runtime/cli/bin/dsh.cmd`）：
 
 ```powershell
 dsh --profile <临时profile> --no-open --port 19391
@@ -328,3 +357,11 @@ dsh --profile <临时profile> --no-open --port 19391
 </details>
 
 **Runtime invariant:** 通知链路上的任何失败都只写日志——不抛出、不改变审批结果、不阻塞对话流程。
+
+## License
+
+<a id="license"></a>
+
+[MIT](LICENSE) © 2026 Changenming
+
+本项目源自 ClaudeBell（Claude Code hook 版），其原始实现与本移植版同为 MIT 许可。
