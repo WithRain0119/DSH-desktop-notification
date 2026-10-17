@@ -35,7 +35,7 @@ const requireStub = (spec) => {
 new Function('window', 'require', src)(fakeWindow, requireStub);
 if (loaded.length !== 1) throw new Error(`expected 1 registration, got ${loaded.length}`);
 const registration = loaded[0];
-if (registration.id !== 'dsh-notify') throw new Error(`bad id: ${registration.id}`);
+if (registration.id !== 'dsh-desktop-notification') throw new Error(`bad id: ${registration.id}`);
 const mod = registration.factory(requireStub);
 
 // ---- 最小宿主桩 ----
@@ -70,7 +70,7 @@ const ctx = {
   },
   configForms: {
     get: (ns) => {
-      if (ns !== 'dsh-notify') throw new Error(`unexpected configForms.get(${ns})`);
+      if (ns !== 'notify-desktop') throw new Error(`unexpected configForms.get(${ns})`);
       return form;
     },
     whileServed: (namespaces, register) => {
@@ -101,13 +101,13 @@ assert(Array.isArray(mod.inject) && mod.inject.includes('configForms'), '导出 
 assert(sections.length === 1, '注册了一个 settings.section 页面');
 const { options, Component } = sections[0];
 assert(options.name === 'settings.section', '注册到 settings.section');
-assert(options.id === 'dsh-notify', '注册 id 为 dsh-notify');
+assert(options.id === 'notify-desktop', '注册 id 为 notify-desktop');
 assert(options.order === 30, '注册 order 为 30');
 assert(options.label() === 'title', 'label 走词典 title');
 assert(options.inject().notifyForm === form, 'inject 注入表单控制器');
 
 // 词典对齐：zh 与 en 的键必须完全一致
-const dicts = dictionaries['settings.dshNotify'];
+const dicts = dictionaries['settings.notifyDesktop'];
 assert(!!dicts, '注册了本地词典');
 const zhKeys = Object.keys(dicts.zh).sort();
 const enKeys = Object.keys(dicts.en).sort();

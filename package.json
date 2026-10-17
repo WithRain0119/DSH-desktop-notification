@@ -1,14 +1,14 @@
 {
-  "name": "dsh-notify",
+  "name": "dsh-desktop-notification",
   "version": "0.2.0",
   "description": "DSH 桌面/邮件通知插件：任务完成或需要你确认时，在屏幕右下角弹出毛玻璃卡片（可选邮件通知）",
   "type": "module",
-  "main": "lib/index.js",
+  "main": "lib/host.js",
   "bin": {
-    "dsh-notify": "./bin/dsh-notify.js"
+    "dsh-notify-test": "./bin/dsh-notify-test.js"
   },
   "exports": {
-    ".": "./lib/index.js",
+    ".": "./lib/host.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./popup.ps1": "./lib/popup.ps1",
@@ -49,6 +49,6 @@
   "license": "MIT",
   "scripts": {
     "test": "node test/popup.test.mjs && node test/host.test.mjs && node test/client.test.mjs",
-    "test:popup": "node bin/dsh-notify.js test"
+    "test:popup": "node bin/dsh-notify-test.js test"
   }
 }

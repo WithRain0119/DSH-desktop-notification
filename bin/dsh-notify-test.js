@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * dsh-notify 命令行自测工具（相当于原 ClaudeBell 的 `claude-bell test`）。
+ * dsh-desktop-notification 命令行自测工具（相当于原 ClaudeBell 的 `claude-bell test`）。
  *
  * 它不读取 DSH 的设置，只用命令行参数，用来在 DSH 之外快速验证：
  *   - 弹窗能不能正常显示（popup.ps1 / 提示音 / 毛玻璃）
@@ -8,20 +8,20 @@
  *   - 日志写到哪里
  *
  * 用法：
- *   node bin/dsh-notify.js test                    # 任务完成 文案
- *   node bin/dsh-notify.js test need_input         # 需要确认 文案
- *   node bin/dsh-notify.js test error              # 出错 文案
- *   node bin/dsh-notify.js test --no-sound         # 不播放提示音
- *   node bin/dsh-notify.js test --timeout 5        # 卡片 5 秒后消失
- *   node bin/dsh-notify.js test --mail             # 同时发邮件（读 SMTP_* 环境变量）
+ *   node bin/dsh-notify-test.js test                    # 任务完成 文案
+ *   node bin/dsh-notify-test.js test need_input         # 需要确认 文案
+ *   node bin/dsh-notify-test.js test error              # 出错 文案
+ *   node bin/dsh-notify-test.js test --no-sound         # 不播放提示音
+ *   node bin/dsh-notify-test.js test --timeout 5        # 卡片 5 秒后消失
+ *   node bin/dsh-notify-test.js test --mail             # 同时发邮件（读 SMTP_* 环境变量）
  */
 import { notify, TITLES } from '../lib/notify.js';
 import { currentLogFile, resolveLogDir } from '../lib/logger.js';
 
-const USAGE = `dsh-notify — DSH 通知插件自测工具
+const USAGE = `dsh-desktop-notification — DSH 通知插件自测工具
 
 用法:
-  node bin/dsh-notify.js test [事件类型] [选项]
+  node bin/dsh-notify-test.js test [事件类型] [选项]
 
 事件类型:
   task_complete   任务完成（默认）
@@ -72,7 +72,7 @@ async function main() {
   const eventType = Object.hasOwn(TITLES, argv[1]) ? argv[1] : 'task_complete';
   const sound = !argv.includes('--no-sound');
   const timeout = Number(flagValue(argv, '--timeout') ?? 10);
-  const message = flagValue(argv, '--message') ?? '这是一条 dsh-notify 测试通知';
+  const message = flagValue(argv, '--message') ?? '这是一条 dsh-desktop-notification 测试通知';
   const withMail = argv.includes('--mail');
 
   const config = {

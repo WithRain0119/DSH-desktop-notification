@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // 日志写到系统临时目录，不污染仓库
-const logDir = path.join(os.tmpdir(), 'dsh-notify-test');
+const logDir = path.join(os.tmpdir(), 'notify-desktop-test');
 fs.rmSync(logDir, { recursive: true, force: true });
 process.env.DSH_NOTIFY_LOG_DIR = logDir;
 
@@ -16,14 +16,14 @@ console.log = (...args) => {
   lines.push(args.join(' '));
 };
 
-const { apply, Config, name } = await import('../lib/index.js');
+const { apply, Config, name } = await import('../lib/host.js');
 
 const assert = (ok, message) => {
   if (!ok) throw new Error(`FAIL: ${message}`);
   realLog(`ok - ${message}`);
 };
 
-assert(name === 'dsh-notify', '导出 name');
+assert(name === 'dsh-desktop-notification', '导出 name');
 assert(!!Config && typeof Config === 'function', '导出 Config schema');
 
 // 设置对象：volatile 字段在运行期是 { get() } 引用
@@ -174,7 +174,7 @@ assert(dispatchLines().length === 0, '关掉「任务完成」后不再通知');
 
 // 10) 日志确实落盘
 await new Promise((resolve) => setTimeout(resolve, 50));
-const written = fs.readdirSync(logDir).filter((f) => f.startsWith('dsh-notify-'));
+const written = fs.readdirSync(logDir).filter((f) => f.startsWith('notify-desktop-'));
 assert(written.length >= 1, '日志写到了指定目录');
 
 console.log = realLog;
