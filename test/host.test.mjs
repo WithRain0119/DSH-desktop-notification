@@ -234,7 +234,7 @@ assert(dispatchLines().length === 1 && !dispatchLines()[0].includes('@'), '信�
   const body = mailBody('task_complete', '任务已完成', target, new Date(2026, 9, 17, 13, 20, 0));
   assert(body.includes('工作区：DSH-desktop-notification') && body.includes('对话：改插件设置页'), '邮件正文列出工作区与对话');
   assert(body.includes('时间：2026-10-17 13:20:00'), '邮件正文带时间');
-  assert(body.includes('会话：session-a'), '邮件正文带会话 id');
+  assert(!body.includes('session-a'), '邮件正文不带会话 id（长串对人没意义）');
   assert(popupBody('只有细节', undefined) === '只有细节', '没有 target 时弹窗正文保持原文');
 }
 
