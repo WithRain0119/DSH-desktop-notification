@@ -25,6 +25,18 @@ DeepSeek Harness（DSH）桌面/邮件通知插件：**任务完成**或**需要
 
 ## 安装
 
+### 第 0 步：先装插件自己的依赖
+
+DSH 安装本地路径的插件时用的是 pnpm 的 `link:`（软链接），**不会**替你安装插件目录里的依赖：
+
+```powershell
+cd "E:\claude code\Project\DSH-desktop-notification"
+npm install
+```
+
+这一步必须做，否则 Host 半部在 `import '@deepseek-ai/schemastery'` 处就会失败，
+表现是插件页提示 `dsh-notify (dsh-notify): failed to import`。
+
 ### 方式一：在 DSH 里安装（推荐）
 
 1. 打开 DSH 侧边栏的 **插件** 页 → **添加插件**；
