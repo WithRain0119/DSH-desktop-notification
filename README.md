@@ -148,6 +148,24 @@ npm install
 - 审批与提问是 waterfall 事件，插件只发通知、然后立刻 `next()`，**不参与决策**，不会改变审批结果或拖慢界面；
 - `subagent/start` / `subagent/end` 用来记录子会话，`忽略子 Agent` 打开时这些会话结束不弹窗。
 
+## 通知里写的是「哪个工作区 › 哪个对话」
+
+同一条通知在多个会话之间必须能区分开，所以标题下面第一行就是定位信息：
+
+```
+┌──────────────────────────────────┐
+│ DSH 任务完成                      │
+│ DSH-desktop-notification › 改插件设置页   │
+│ 任务已完成，可以回来看看结果了     │
+└──────────────────────────────────┘
+```
+
+- **工作区**：取 DSH 的工作区注册表。先按会话归属认领，再按会话目录（`SessionHeader.cwd`）匹配；目录还没注册成工作区时退回文件夹名。
+- **对话**：取 DSH 生成的会话标题（侧边栏显示的那个）；你手动重命名过，显示的就是你起的名字。
+- 拿不到就降级：没有对话标题时不输出空的「›」，连会话都查不到时整行省略——不会退回到以前那种 `会话 a4f02266` 的短码。
+
+邮件里同样是这个信息：标题是 `DSH 任务完成 · 工作区 › 对话`，正文结构化列出事件 / 工作区 / 对话 / 时间 / 会话 id，下面再写事件细节。
+
 ## 自测
 
 ### 在 DSH 里
@@ -173,6 +191,9 @@ node bin/dsh-notify-test.js test
 node bin/dsh-notify-test.js test need_input
 node bin/dsh-notify-test.js test --no-sound
 node bin/dsh-notify-test.js test --timeout 5
+
+# 复现「工作区 › 对话」这行的排版
+node bin/dsh-notify-test.js test --workspace DSH-desktop-notification --conversation 改插件设置页
 
 # 连邮件一起测（读 SMTP_* / MAIL_* 环境变量）
 $env:SMTP_HOST="smtp.qq.com"; $env:SMTP_PORT="465"; $env:SMTP_SECURE="true"
