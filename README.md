@@ -45,18 +45,22 @@ kind: "package-reference"
 
 ### Smallest working setup
 
-**第 0 步：先装插件自己的依赖。** DSH 安装本地路径插件时使用 pnpm 的 `link:`（软链接），**不会**替你安装插件目录里的依赖；缺依赖时 Host 半部会在导入 `@deepseek-ai/schemastery` 处失败，插件页只显示一句 `failed to import`。
+**方式一：从 Releases 下载 `.tgz`（推荐，最省事）。** 在 [Releases](../../releases) 页下载 `dsh-desktop-notification-<version>.tgz`，保存到任意目录；打开侧边栏 **插件** 页 → **添加插件** → 把 tgz 的**绝对路径**粘进输入框 → **安装**。
+
+DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-desktop-notification`）并自动启用；pnpm 会**连插件依赖一起装好**，不需要你手动 `npm install`。
+
+**方式二：填本地仓库目录。** 适合自己改代码调试。先装依赖——DSH 安装本地目录时走 pnpm 的 `link:`（软链接），**不会**替你安装插件目录里的依赖；缺依赖时 Host 半部会在导入 `@deepseek-ai/schemastery` 处失败，插件页只显示一句 `failed to import`：
 
 ```powershell
 # 在克隆下来的仓库根目录（含 package.json 的那一层）执行
 npm install
 ```
 
-**方式一：在 DSH 里安装（推荐）。** 打开侧边栏 **插件** 页 → **添加插件** → 在包名输入框填本仓库根目录的绝对路径（即上一步 `npm install` 所在目录）→ **安装**。DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-desktop-notification`）并自动启用。
+然后同样在 **添加插件** 里填本仓库根目录的绝对路径 → **安装**。
 
-> 本插件目前**不经 npm 分发**，请按本地路径安装；把仓库克隆或解压到任意目录都可以，路径里带空格与中文不影响。
+> 本插件暂不经 npm 分发；克隆或解压到任意目录都可以，路径里带空格与中文不影响。
 
-**方式二：手动软链接（开发用）。**
+**方式三：手动软链接（开发用）。**
 
 ```powershell
 # 在仓库根目录执行

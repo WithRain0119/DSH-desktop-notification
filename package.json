@@ -47,6 +47,14 @@
   ],
   "author": "Changenming",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WithRain0119/DSH-desktop-notification.git"
+  },
+  "homepage": "https://github.com/WithRain0119/DSH-desktop-notification#readme",
+  "bugs": {
+    "url": "https://github.com/WithRain0119/DSH-desktop-notification/issues"
+  },
   "scripts": {
     "test": "node test/popup.test.mjs && node test/host.test.mjs && node test/client.test.mjs",
     "test:popup": "node bin/dsh-notify-test.js test"
