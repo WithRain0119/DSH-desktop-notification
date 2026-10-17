@@ -1,4 +1,4 @@
-﻿// 临时冒烟测试：不开 DSH，用最小 ctx 桩验证 Host 半部的事件映射与去抖逻辑。
+// 临时冒烟测试：不开 DSH，用最小 ctx 桩验证 Host 半部的事件映射与去抖逻辑。
 // 桌面/邮件都关掉，只断言「调度到了正确的事件类型」，不会弹窗。
 // 不提交（tools/ 已进 .gitignore）。
 import fs from 'node:fs';
@@ -158,11 +158,17 @@ emit('agent/error', { agent: { id: 'session-a' }, error: new Error('boom') });
 await new Promise((resolve) => setTimeout(resolve, 20));
 assert(dispatchLines().length === 0, '出错通知默认关闭');
 
-// 8) /notify-test 命令返回结果（桌面关 + 邮件关 → error 提示）
+// 8) /notify-test：不受「通知时机」开关限制（这是 error 事件被用户测出问题的那个缺陷）
+//    桌面与邮件都关着，所以没渠道 → error；但必须走到调度，日志里要留下「强制发送」。
 clearLines();
-const result = await commands[0].handler({ rawInput: 'need_input', agent: { id: 'session-a' } });
+const result = await commands[0].handler({ rawInput: 'error', agent: { id: 'session-a' } });
 assert(result.kind === 'error', '/notify-test 在没有可用渠道时返回 error');
-assert(result.text.includes('没有任何渠道'), '/notify-test 给出可操作的提示');
+assert(result.text.includes('「启用桌面弹窗」是关的'), '提示里点名是哪个开关关着');
+assert(
+  lines.some((line) => line.includes('强制发送')),
+  '/notify-test 对已关闭的事件类型仍然强制发送（不再被 events.error 拦住）',
+);
+assert(dispatchLines().length === 1 && dispatchLines()[0].includes('[error]'), '/notify-test error 走到了 error 分支');
 
 // 9) 设置里改值立即生效（volatile 引用被 Loader 就地更新）
 config.events.taskComplete = ref(false);
@@ -171,6 +177,12 @@ emit('agent/status', { agent: { id: 'session-b' }, status: 'running' });
 emit('agent/status', { agent: { id: 'session-b' }, status: 'idle' });
 await new Promise((resolve) => setTimeout(resolve, 20));
 assert(dispatchLines().length === 0, '关掉「任务完成」后不再通知');
+
+// 10) 正式事件仍然尊重开关：error 关着时 agent/error 不调度
+clearLines();
+emit('agent/error', { agent: { id: 'session-b' }, error: new Error('boom') });
+await new Promise((resolve) => setTimeout(resolve, 20));
+assert(dispatchLines().length === 0, '正式事件仍受开关约束（force 只给测试用）');
 
 // 10) 日志确实落盘
 await new Promise((resolve) => setTimeout(resolve, 50));
