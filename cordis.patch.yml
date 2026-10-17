@@ -1,0 +1,26 @@
+# dsh-notify 的默认组合：把插件的 Host 半部插进 profile 的插件树。
+#
+# 这里是「出厂默认值」。你之后在「设置 → 通知」里改动的内容，
+# 会作为覆盖写进当前 profile 的 cordis.patch.yml（同一行 id），并立即生效。
+- insert:
+    - id: dsh-notify
+      name: dsh-notify
+      config:
+        desktop:
+          enabled: true
+          sound: true
+          timeoutSec: 10
+        events:
+          taskComplete: true
+          needInput: true
+          error: false
+        ignoreSubagents: true
+        mail:
+          enabled: false
+          smtpHost: ''
+          smtpPort: 587
+          smtpSecure: false
+          smtpUser: ''
+          smtpPass: ''
+          from: ''
+          to: ''

@@ -4,5 +4,9 @@ Prompt.md
 node_modules/
 logs/
 *.log
+# npm 缓存（沙箱内安装依赖时用工作区目录，不提交）
+.npm-cache/
 # 开发期本地配置（含邮箱授权码等敏感信息，不提交）
 config/dev-config.json
+# 临时研究脚本（读取 app.asar 用），不是插件的一部分
+tools/

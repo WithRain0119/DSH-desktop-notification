@@ -1,40 +1,56 @@
 {
-  "name": "claude-bell",
-  "version": "0.1.0",
-  "description": "Claude Code CLI 桌面/邮件通知工具",
-  "main": "src/index.js",
-  "bin": {
-    "claude-bell": "./bin/claude-bell.js"
+  "name": "dsh-notify",
+  "version": "0.2.0",
+  "description": "DSH 桌面/邮件通知插件：任务完成或需要你确认时，在屏幕右下角弹出毛玻璃卡片（可选邮件通知）",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./popup.ps1": "./lib/popup.ps1",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   },
   "files": [
-    "bin",
-    "src",
-    "audio",
-    "config/default.json"
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md"
   ],
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "dependencies": {
+    "nodemailer": "^10.1.2"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/WithRain0119/ClaudeBell.git"
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "~3.18.4"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
   },
   "keywords": [
-    "claude-code",
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
     "notification",
     "desktop-notification",
-    "email",
-    "cli"
+    "email"
   ],
   "author": "Changenming",
   "license": "MIT",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/WithRain0119/ClaudeBell/issues"
-  },
-  "homepage": "https://github.com/WithRain0119/ClaudeBell#readme",
-  "dependencies": {
-    "commander": "^15.0.0",
-    "nodemailer": "^10.0.15"
+  "scripts": {
+    "test": "node bin/dsh-notify.js test"
   }
 }
