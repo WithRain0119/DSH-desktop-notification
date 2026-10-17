@@ -45,7 +45,7 @@ kind: "package-reference"
 
 ### Smallest working setup
 
-**方式一：从 Releases 下载 `.tgz`（推荐，最省事）。** 在 [Releases](../../releases) 页下载 `dsh-desktop-notification-<version>.tgz`，保存到任意目录；打开侧边栏 **插件** 页 → **添加插件** → 把 tgz 的**绝对路径**粘进输入框 → **安装**。
+**方式一：从 Releases 下载 `.tgz`（推荐，最省事）。** 在 [Releases](../../releases) 页下载 `dsh-desktop-notification-<version>.tgz`（或 `.tar.gz`，两者等价），保存到任意目录；打开侧边栏 **插件** 页 → **添加插件** → 把 tgz 的**绝对路径**粘进输入框 → **安装**。
 
 DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-desktop-notification`）并自动启用；pnpm 会**连插件依赖一起装好**，不需要你手动 `npm install`。
 

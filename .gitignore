@@ -13,3 +13,4 @@ tools/
 # 发布产物（npm pack 输出），随 Release 附件发布，不进版本库
 dist/
 *.tgz
+*.tar.gz
