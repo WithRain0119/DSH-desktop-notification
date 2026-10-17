@@ -44,7 +44,7 @@
   "author": "Changenming",
   "license": "MIT",
   "scripts": {
-    "test": "node test/host.test.mjs && node test/client.test.mjs",
+    "test": "node test/popup.test.mjs && node test/host.test.mjs && node test/client.test.mjs",
     "test:popup": "node bin/dsh-notify.js test"
   }
 }
