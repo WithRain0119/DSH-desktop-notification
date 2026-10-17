@@ -1,276 +1,264 @@
-# ClaudeBell
+# dsh-notify
 
-Claude Code CLI 桌面/邮件通知工具：任务完成或需要确认时，在桌面右下角弹出通知（可选邮件通知）。
+DeepSeek Harness（DSH）桌面/邮件通知插件：**任务完成**或**需要你确认**时，在屏幕右下角弹出毛玻璃卡片，也可以同时发一封邮件。
 
-**不用一直盯着终端了** —— Claude Code 在后台跑长任务时，你可以去干别的事，任务一结束，桌面右下角会弹出卡片提醒；需要你做选择时也会提醒。开启邮件后还能收到邮件（自己发给自己，手机也能收到推送）。
+**不用一直盯着窗口了** —— DSH 在后台跑长任务时，你可以去干别的事：任务一结束，右下角弹卡片提醒；需要你点同意、或者 Agent 反过来提问时，也会提醒。打开邮件后手机也能收到推送。
+
+> 本项目是 ClaudeBell（Claude Code hook 版）的 DSH 移植版：通知渠道、卡片外观、提示音、日志、邮件配置全部保留，只把触发源从 Claude Code 的 `Stop` / `Notification` hook 换成了 DSH 自己的 Agent 事件，并把配置搬进了 DSH 的设置界面。
 
 ## 功能特性
 
-- **桌面通知**：屏幕右下角弹出毛玻璃风格卡片，自动跟随背后画面实时模糊；点击卡片任意位置关闭，10 秒后自动消失；多条通知自动替换而非堆叠
+- **桌面通知**：屏幕右下角弹出毛玻璃卡片，毛玻璃背景实时跟随背后画面；点击卡片任意位置关闭，默认 10 秒后自动消失；新通知会替换旧通知而不是堆叠
+- **通知时机可分别开关**：任务完成 / 需要你确认 / 任务出错，三类事件独立控制
+- **子 Agent 不打扰**：subagent、workflow 子任务结束时不弹窗（默认开启，可关）
 - **邮件通知**：可选，默认关闭；可发到任意邮箱（包括自己发给自己）
-- **按日期分割的日志**：所有事件、通知、错误都记录在 `logs/claude-bell-YYYY-MM-DD.log`
-- **配置管理**：配置保存在用户目录，首次运行自动生成
-- **CLI 命令**：处理 hook 事件、开关邮件、读写配置、发送测试通知
-- **无额外运行时依赖**：桌面弹窗基于系统自带的 PowerShell + WinForms 自绘，不需要安装通知组件
+- **图形化配置**：所有开关与 SMTP 参数都在 **设置 → 通知** 里改，改完立即生效，不需要改文件、不需要重启
+- **按日期分割的日志**：所有事件、通知、错误都记录在 `DSH_HOME/logs/dsh-notify-YYYY-MM-DD.log`
+- **无额外运行时依赖**：弹窗基于系统自带的 PowerShell + WinForms 自绘，不使用系统通知中心，也不需要安装通知组件
+- **失败不外溢**：通知链路上的任何异常都只记日志，绝不影响 DSH 的对话流程；审批/提问监听只观察、不改变结果
 
 ## 环境要求
 
-- Node.js v18+
-- Windows 10/11
+- DSH 桌面端（本插件在 DSH `0.2.0-rc.2` 上开发与验证）
+- Windows 10/11（桌面弹窗依赖 PowerShell + WinForms；其他平台只能走邮件通知）
+- Node.js 18+（仅自测脚本和依赖安装需要）
 
-> macOS / Linux 目前只支持邮件通知，桌面通知未适配。
+## 安装
+
+### 方式一：在 DSH 里安装（推荐）
+
+1. 打开 DSH 侧边栏的 **插件** 页 → **添加插件**；
+2. 在包名输入框里填本目录的**绝对路径**，例如：
+
+   ```
+   E:\claude code\Project\DSH-desktop-notification
+   ```
+
+3. 点 **安装**。DSH 会把它作为 bundle 装进当前 profile（`dsh.profile.bundles` 增加 `dsh-notify`），并自动启用。
+
+安装成功后打开 **设置 → 通知**，就能看到本插件的设置页。
+
+> 如果插件页提示 `dsh-notify (dsh-notify): failed to import`，**重启一次 DSH 桌面端**再试：
+> 插件代码在 Host 进程里按模块缓存，一次导入失败会被缓存到进程结束。
+
+### 方式二：手动软链接（开发用）
+
+```powershell
+# 1) 把插件目录软链接进 profile 的 node_modules
+$profile = "C:\Users\<你>\.dsh\profiles\desktop"
+New-Item -ItemType Junction -Path "$profile\node_modules\dsh-notify" `
+  -Target "E:\claude code\Project\DSH-desktop-notification"
+
+# 2) 让 profile 选中这个 bundle（也可以直接在 DSH 插件页里启用）
+#    $profile\package.json → dsh.profile.bundles 里加上 "dsh-notify"
+
+# 3) 装插件自己的依赖
+cd "E:\claude code\Project\DSH-desktop-notification"
+npm install
+```
+
+> 插件自带的 `cordis.patch.yml` 会在 profile 里插入 `id: dsh-notify` 这一行；
+> 这个 id 同时是设置界面里该插件的设置命名空间，不要改。
+
+## 在设置界面里改配置
+
+**侧边栏 → 设置 → 通知**（在 General / Models / Plugins 之后），页面分四组：
+
+| 分组 | 项目 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| 桌面弹窗 | 启用桌面弹窗 | 开 | 总开关 |
+|  | 播放提示音 | 开 | 弹窗出现时播放随包音效 |
+|  | 自动消失（秒） | 10 | 点卡片可提前关闭 |
+| 通知时机 | 任务完成 | 开 | 一轮对话结束、Agent 重新空闲时通知 |
+|  | 需要你确认 | 开 | 工具审批、Agent 提问时通知 |
+|  | 任务出错 | 关 | 某一轮或某一步出错时通知 |
+|  | 忽略子 Agent | 开 | 只通知主会话 |
+| 邮件通知 | 启用邮件通知 | 关 | 打开后每条通知同时发邮件 |
+|  | SMTP 服务器 | — | 如 `smtp.qq.com` |
+|  | 端口 | 587 | SSL 用 465，STARTTLS 用 587 |
+|  | 使用 SSL | 关 | QQ / 163 / Gmail 选开 |
+|  | SMTP 用户名 | — | 一般是完整邮箱地址 |
+|  | SMTP 授权码 | — | **不是**邮箱登录密码；留空表示保持已保存的授权码 |
+|  | 发件人 / 收件人 | — | 多数邮箱要求发件人 = SMTP 用户名；收件人填自己就是自己发给自己 |
+
+所有改动都写进当前 profile 的 `cordis.patch.yml`（对应 `id: dsh-notify` 的 `config`），并立即生效。
+SMTP 授权码字段标记为 `role('secret')`：它不会出现在设置文档的任何读取结果里，也不会写进日志。
+
+### 邮件配置示例（QQ 邮箱）
+
+1. 登录 QQ 邮箱 → 设置 → 账户 → 开启 **SMTP 服务**，拿到 **16 位授权码**；
+2. 在 **设置 → 通知 → 邮件通知** 里填：
+
+   ```
+   SMTP 服务器   smtp.qq.com
+   端口          465
+   使用 SSL      开
+   SMTP 用户名   你的QQ邮箱
+   SMTP 授权码   你的16位授权码
+   发件人        你的QQ邮箱
+   收件人        你的QQ邮箱
+   启用邮件通知   开
+   ```
+
+其他邮箱的服务器参数：
+
+| 邮箱 | host | port | secure |
+| --- | --- | --- | --- |
+| QQ 邮箱 | `smtp.qq.com` | `465` | 开 |
+| 163 邮箱 | `smtp.163.com` | `465` | 开 |
+| Gmail | `smtp.gmail.com` | `465` | 开 |
+| Outlook | `smtp.office365.com` | `587` | 关 |
+
+## DSH 事件 → 通知
+
+| DSH 事件 | 通知类型 | 触发时机 | 默认 |
+| --- | --- | --- | --- |
+| `agent/status`（`running` → `idle`） | 任务完成 | 一轮对话结束、Agent 重新空闲 | 开 |
+| `approval/request` | 需要你确认 | 工具调用需要审批 | 开 |
+| `user-questions/request` | 需要你确认 | Agent 调用 `ask_user_question` 向你提问 | 开 |
+| `agent/error` | 任务出错 | 某一步或某一轮出错 | 关 |
+
+实现细节：
+
+- `agent/status` 只在**先 running 再 idle** 时通知，所以新建会话、恢复会话的空闲状态不会误报；
+- 审批与提问是 waterfall 事件，插件只发通知、然后立刻 `next()`，**不参与决策**，不会改变审批结果或拖慢界面；
+- `subagent/start` / `subagent/end` 用来记录子会话，`忽略子 Agent` 打开时这些会话结束不弹窗。
+
+## 自测
+
+### 在 DSH 里
+
+在任意会话的输入框执行：
+
+```
+/notify-test
+```
+
+可选的参数：`/notify-test need_input`、`/notify-test error`。命令会按当前设置真的发一条通知，并告诉你走了哪些渠道。
+
+### 不启动 DSH
+
+```powershell
+# 弹窗 + 提示音（默认「任务完成」文案）
+node bin/dsh-notify.js test
+
+# 其他文案 / 关闭提示音 / 5 秒后消失
+node bin/dsh-notify.js test need_input
+node bin/dsh-notify.js test --no-sound
+node bin/dsh-notify.js test --timeout 5
+
+# 连邮件一起测（读 SMTP_* / MAIL_* 环境变量）
+$env:SMTP_HOST="smtp.qq.com"; $env:SMTP_PORT="465"; $env:SMTP_SECURE="true"
+$env:SMTP_USER="你的邮箱"; $env:SMTP_PASS="授权码"
+$env:MAIL_FROM="你的邮箱"; $env:MAIL_TO="你的邮箱"
+node bin/dsh-notify.js test --mail
+```
+
+### 回归测试
+
+```powershell
+npm install
+npm test
+```
+
+`test/host.test.mjs` 用假的 ctx 验证事件映射（running→idle 才通知、去抖、子 Agent 忽略、审批/提问透传 `next()`、出错默认关闭、设置改动立即生效、日志落盘）；
+`test/client.test.mjs` 用最小的 React 桩验证设置页能注册、中英文案键对齐、8 个开关与 7 个输入框齐全、开关写到正确的设置路径。两者都不开浏览器、不弹窗。
+
+## 日志
+
+按日期分割，位于 DSH 主目录下：
+
+```
+C:\Users\<你>\.dsh\logs\dsh-notify-2026-10-17.log
+```
+
+- 日志目录由 `DSH_HOME`（默认 `~/.dsh`）推导；也可以用环境变量 `DSH_NOTIFY_LOG_DIR` 直接指定；
+- Node 侧与弹窗（PowerShell）写同一个文件，`[popup]` 前缀的行来自弹窗进程，便于对照排查；
+- SMTP 密码、授权码一律不写日志。
 
 ## 目录结构
 
 ```
-ClaudeBell/
-├── bin/claude-bell.js      # CLI 入口
-├── src/
-│   ├── config.js           # 配置管理
-│   ├── logger.js           # 日志模块
-│   └── notifier/
-│       ├── index.js        # 通知调度器
-│       ├── desktop.js      # 桌面通知（调用 popup.ps1）
-│       ├── popup.ps1       # 自绘毛玻璃弹窗（PowerShell + WinForms）
-│       └── email.js        # 邮件通知
-├── config/default.json     # 默认配置
-└── logs/                   # 日志目录（不入版本库）
+DSH-desktop-notification/
+├── package.json          # 插件清单：main / exports / dsh.client / dsh.bundle
+├── cordis.patch.yml      # bundle 默认配置（插入 id: dsh-notify 的 Loader 行）
+├── lib/
+│   ├── index.js          # Host 半部：事件监听 → 通知调度（Config 也在这里）
+│   ├── client.js         # Client 半部：注册「设置 → 通知」页面
+│   ├── notify.js         # 通知调度器（事件类型 → 标题/文案，桌面 + 邮件）
+│   ├── desktop.js        # 启动 popup.ps1（独立进程，脱离宿主进程树）
+│   ├── email.js          # 邮件通知（nodemailer 懒加载）
+│   ├── logger.js         # 按日期分割的日志
+│   └── popup.ps1         # 自绘毛玻璃弹窗（PowerShell + WinForms）
+├── assets/bell.mp3       # 提示音
+├── bin/dsh-notify.js     # 命令行自测工具
+└── test/                 # 无浏览器冒烟测试
 ```
-
-## 安装
-
-```bash
-git clone https://github.com/WithRain0119/ClaudeBell
-cd ClaudeBell
-npm install
-
-# 让 claude-bell 命令全局可用（在管理员的权限下的powershell中运行）
-npm link
-```
-
-验证：
-
-```bash
-claude-bell --version
-claude-bell --help
-```
-
-> Windows 上若 `npm link` 报 `EPERM: operation not permitted, symlink`，说明 Node 全局目录当前用户无写权限：改用管理员 PowerShell 执行，或改到你自己的目录 `npm config set prefix "C:\Users\<你>\AppData\Roaming\npm"`。
-
-## 配置说明
-
-配置文件位置：
-
-
-| 场景           | 路径                                                                              |
-| -------------- | --------------------------------------------------------------------------------- |
-| 默认（部署后） | `~/.claude-bell/config.json`                                                      |
-| 开发期（可选） | 环境变量`CLAUDE_BELL_CONFIG_FILE` 指定的路径，例如项目内 `config/dev-config.json` |
-
-文件不存在时会自动从 `config/default.json` 生成一份默认配置：
-
-```json
-{
-  "desktop": { "enabled": true },
-  "mail": {
-    "enabled": false,
-    "smtp": { "host": "", "port": 587, "secure": false, "user": "", "pass": "" },
-    "from": "",
-    "to": ""
-  }
-}
-```
-
-> **开发期**想让配置留在项目里（不写用户目录）：
->
-> - PowerShell：`$env:CLAUDE_BELL_CONFIG_FILE = "E:\claude code\Project\ClaudeBell\config\dev-config.json"`
-> - bash：`export CLAUDE_BELL_CONFIG_FILE="/e/claude code/Project/ClaudeBell/config/dev-config.json"`
->
-> 该文件已被 `.gitignore` 忽略，避免邮箱授权码被提交。**部署后请不要设置这个变量**，否则 hook 会一直读项目内配置。
-
-### 邮件配置示例（QQ 邮箱）
-
-1. 登录 QQ 邮箱 → 设置 → 账户 → 开启 **SMTP 服务**，获取 **16 位授权码**（注意：不是 QQ 登录密码）；
-2. 执行：
-
-```bash
-claude-bell config set mail.smtp.host smtp.qq.com
-claude-bell config set mail.smtp.port 465
-claude-bell config set mail.smtp.secure true
-claude-bell config set mail.smtp.user 你的qq邮箱
-claude-bell config set mail.smtp.pass 你的16位授权码
-claude-bell config set mail.from 你的qq邮箱
-claude-bell config set mail.to 你的qq邮箱   # 填自己 = 自己给自己发
-```
-
-3. 开启邮件通知并测试：
-
-```bash
-claude-bell mail on
-claude-bell test
-```
-
-其他邮箱的服务器参数：
-
-
-| 邮箱     | host                 | port  | secure  |
-| -------- | -------------------- | ----- | ------- |
-| QQ 邮箱  | `smtp.qq.com`        | `465` | `true`  |
-| 163 邮箱 | `smtp.163.com`       | `465` | `true`  |
-| Gmail    | `smtp.gmail.com`     | `465` | `true`  |
-| Outlook  | `smtp.office365.com` | `587` | `false` |
-
-### 开关邮件通知
-
-```bash
-claude-bell mail on      # 开启
-claude-bell mail off     # 关闭
-claude-bell mail status  # 查看状态
-```
-
-## CLI 命令
-
-
-| 命令                                   | 说明                                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------- |
-| `claude-bell hook`                     | 处理 Claude Code hook 事件（从 stdin 读取 JSON，由 Claude Code 自动调用）  |
-| `claude-bell mail on`                  | 开启邮件通知                                                               |
-| `claude-bell mail off`                 | 关闭邮件通知                                                               |
-| `claude-bell mail status`              | 查看邮件通知开关状态                                                       |
-| `claude-bell config set <key> <value>` | 设置配置项（value 优先按 JSON 解析，如`true`/`587`，解析失败按字符串保存） |
-| `claude-bell config get <key>`         | 读取配置项（`mail.smtp.pass` 脱敏显示为 `***`）                            |
-| `claude-bell test [eventType]`         | 发送测试通知，`eventType` 可选 `task_complete`（默认）/ `need_input`       |
-
-## 集成到 Claude Code
-
-### 1. 配置 hooks
-
-在 `~/.claude/settings.json` 中加入（**若文件中已有其他配置，请只把 `hooks` 部分合并进去，不要覆盖整个文件**）：
-
-```json
-{
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "claude-bell hook" }]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [{ "type": "command", "command": "claude-bell hook" }]
-      }
-    ]
-  }
-}
-```
-
-- `Stop`：一次回复结束时触发 → 「Claude Code 任务完成」
-- `Notification`：需要你确认或选择时触发 → 「Claude Code 需要你确认」
-  （`notification_type` 为 `idle_prompt` 的"输入框闲置"提醒会被忽略，不弹窗）
-
-### 2. 未执行 `npm link` 时（开发期）
-
-把 `command` 换成 node 绝对路径（用正斜杠，node 和 shell 都识别）：
-
-```json
-{
-  "type": "command",
-  "command": "node \"E:/claude code/Project/ClaudeBell/bin/claude-bell.js\" hook"
-}
-```
-
-### 3. 验证集成
-
-```bash
-claude-bell test              # 应弹出玻璃卡片；邮件已开启时还会收到邮件
-claude-bell test need_input   # 测试"需要确认"文案
-```
-
-然后**重启 Claude Code**（settings.json 在启动时读取），正常对话一次，任务结束时桌面应自动弹出通知。
-
-## 日志
-
-按日期分割，位于项目根目录：
-
-```
-logs/claude-bell-2026-10-07.log
-```
-
-日志中邮箱密码一律脱敏为 `***`，可直接分享排查。
-
-> 用 `npm link` 安装时，日志写在**本项目目录**的 `logs/` 下（`npm link` 是指向本目录的链接）；
-> 若将来通过 `npm install -g claude-bell` 安装，日志会写到全局 `node_modules/claude-bell/logs/`。排查时按实际安装方式找。
 
 ## 常见问题
 
-**Q：桌面没有弹出通知？**
+**Q：装完没有弹窗？**
 
-先用"二分法"判断是**程序的问题**还是 **Claude Code 没调用它**：手动模拟一次 hook 调用——
+1. 先确认 **设置 → 通知** 里「启用桌面弹窗」是开的；
+2. 在输入框执行 `/notify-test`（或运行 `node bin/dsh-notify.js test`）：
+   - **弹窗出现了** → 通知链路正常，问题在事件：确认「任务完成」开关是开的，并且这一轮真的结束了；
+   - **还是没弹** → 看日志 `~/.dsh/logs/dsh-notify-<日期>.log`：
+     - 有 `桌面弹窗已启动` 但没有 `[popup]` 开头的行 → 弹窗进程没起来（PowerShell 被策略拦截 / 被杀软拦）；
+     - 有 `[popup] ERROR` → 弹窗脚本报错，行尾会带异常信息；
+3. 如果插件页此前提示过 `failed to import`，重启 DSH 桌面端。
 
-```powershell
-echo '{"hook_event_name":"Stop"}' | claude-bell hook
-```
+**Q：等了很久没反应，其实任务早就结束了？**
+检查 Agent 是不是还在跑（可能卡在某个工具调用上）。通知只在 Agent **回到 idle** 时发；需要确认时会单独发「需要你确认」。
 
-- **弹窗出现了** → 程序正常，问题在 Claude Code 一侧，逐项检查：
+**Q：为什么会弹两次 / 只看到最后一条？**
+连发多条通知时，新卡片会先关闭旧卡片再显示自己（否则旧卡片会被抓进新卡片的毛玻璃背景里，画面发灰）。所以短时间内连发，你只会看到最新的一张。
 
-
-  | 检查项                 | 怎么查                                                                                        |
-  | ---------------------- | --------------------------------------------------------------------------------------------- |
-  | hooks 配置是否写对     | `~/.claude/settings.json` 里有 `Stop` 和 `Notification` 两项，`command` 是 `claude-bell hook` |
-  | 是否重启过 Claude Code | settings.json 在**启动时**读取，改完必须重启才生效                                            |
-  | 全局命令是否可用       | `claude-bell --version` 能输出版本号（不能则需重新 `npm link`）                               |
-- **还是没弹** → 程序或本机环境问题，继续查：
-
-
-  | 检查项                   | 怎么查                                                                 |
-  | ------------------------ | ---------------------------------------------------------------------- |
-  | 桌面通知开关             | `claude-bell config get desktop.enabled` 应为 `true`                   |
-  | 弹窗进程是否启动         | 日志搜`桌面弹窗已启动`（有该行说明程序已发出，问题在弹窗渲染）         |
-  | 有没有报错               | 日志`logs/claude-bell-<日期>.log` 搜 `ERROR`                           |
-  | 是不是被"新通知替换"骗了 | 通知 10 秒自动消失，且**新通知会替换旧通知**，连发多条只会看到最后一条 |
-  | 任务栏遮挡               | 自动隐藏的任务栏弹出时，卡片会自动上移避开，属正常行为                 |
-
-**Q：`claude-bell hook` 和 `claude-bell test` 有什么区别？**
-`test` 用来**看通知效果**（弹窗 + 邮件长什么样），不用输入 JSON；`hook` 用来**验对接链路**（JSON 解析 → 事件名映射 → 默认文案 → 容错 → 超时）。
-`hook` 平时不需要手动敲——它由 Claude Code 自动调用，只有调试、排错（见上一个问题）、回归测试时才手动执行。
+**Q：子 Agent 结束了也在弹？**
+把 **设置 → 通知 → 忽略子 Agent** 打开（默认已开）。它是靠 `subagent/start` / `subagent/end` 记录子会话 id 来过滤的。
 
 **Q：通知会出现在截图、录屏或会议共享里吗？**
-不会。为了让毛玻璃背景实时跟随窗口背后的画面，弹窗对截图 API 声明了隐藏（`WDA_EXCLUDEFROMCAPTURE`），因此它**人眼可见，但不会被截图/录屏/共享捕获**。这是实时毛玻璃的必要代价。
+不会。为了让毛玻璃背景实时跟随背后的画面，弹窗对截图 API 声明了隐藏（`WDA_EXCLUDEFROMCAPTURE`）：**人眼可见，但不会被截图/录屏/共享捕获**。这是实时毛玻璃的必要代价。
 
 **Q：邮件发不出去？**
 
+| 报错 | 原因 |
+| --- | --- |
+| `Invalid login: 535` | 用了邮箱登录密码，应改用 **SMTP 授权码** |
+| `connect ETIMEDOUT` / `ECONNREFUSED` | 端口/加密方式选错（QQ/163 用 `465` + 开 SSL），或网络屏蔽了 SMTP |
+| `Mail from must equal authorized user` | 发件人必须与 SMTP 用户名一致 |
+| 日志显示发送成功但收不到 | 查垃圾邮件箱；换一个收件邮箱再试 |
 
-| 报错                                   | 原因                                                                   |
-| -------------------------------------- | ---------------------------------------------------------------------- |
-| `Invalid login: 535`                   | 用了邮箱登录密码，应改用**SMTP 授权码**                                |
-| `connect ETIMEDOUT` / `ECONNREFUSED`   | 端口/加密方式选错（QQ/163 用`465` + `secure=true`），或网络屏蔽了 SMTP |
-| `Mail from must equal authorized user` | `mail.from` 必须与 `mail.smtp.user` 一致                               |
-| 日志显示发送成功但收不到               | 查垃圾邮件箱；换一个收件邮箱再试                                       |
+**Q：授权码存在哪里？安全吗？**
+存在当前 profile 的 `cordis.patch.yml`（`id: dsh-notify` 的 `config.mail.smtpPass`），文件权限跟随你的用户目录；插件把它标记为 secret：设置界面读不到明文，日志里也没有。
 
-**Q：PowerShell 里手工测试时中文变成 `?????`？**
-PowerShell 向原生命令管道传参默认不是 UTF-8，先执行 `$OutputEncoding = [System.Text.Encoding]::UTF8`。（Claude Code 调用 hook 时不受影响。）
+**Q：通知会拖慢 DSH 吗？**
+不会。弹窗是独立进程，拉起即返回；邮件是异步的，失败只记日志。审批/提问监听同步返回 `next()`，不阻塞界面。
 
-**Q：hook 会拖慢 Claude Code 吗？**
-不会。桌面弹窗启动后立即返回；邮件是异步的，最多等 5 秒（超时后 hook 直接退出，退出码始终为 0，不会让 Claude Code 报错）。
+**Q：还能用原来的 `claude-bell` 命令吗？**
+不需要了，hook 时代已经结束：事件来自 DSH 自己，配置在设置界面，自测用 `/notify-test` 或 `node bin/dsh-notify.js test`。旧的 CLI 代码保留在 git 历史里。
 
-**Q：日志里能看到我的邮箱密码吗？**
-不能，一律显示为 `***`。
-
-**Q：想换电脑或删掉配置？**
-配置在 `~/.claude-bell/config.json`，删掉后下次运行会自动重新生成默认配置。
+**Q：想换台机器 / 重装？**
+删掉 profile 里的 `node_modules\dsh-notify` 与 `package.json` 的 `dsh.profile.bundles` 中的 `dsh-notify`，再重新安装即可。设置值存在 profile 的 `cordis.patch.yml` 里，卸载时可以把对应那段一起删掉。
 
 ## 卸载
 
-```bash
-npm unlink -g claude-bell            # 移除全局命令
-```
+1. 打开 **插件** 页，找到 `dsh-notify` → 卸载；
+2. 或者手动：
 
-然后手动清理：
+   ```powershell
+   $profile = "C:\Users\<你>\.dsh\profiles\desktop"
+   # 从 $profile\package.json 的 dsh.profile.bundles 里删掉 "dsh-notify"
+   Remove-Item "$profile\node_modules\dsh-notify" -Force
+   # 顺手清掉 $profile\cordis.patch.yml 里 id: dsh-notify 的那段
+   ```
 
-1. 删除 `~/.claude-bell/` 目录（含配置）；
-2. 从 `~/.claude/settings.json` 中移除 `hooks` 里的 `Stop` 与 `Notification` 两项。
+## 开发须知
+
+- **`lib/popup.ps1` 必须保存为 UTF-8 with BOM**。Windows PowerShell 5.1 在没有 BOM 时会按 ANSI 解码中文，导致 here-string 与中文注释解析错位，脚本直接起不来。
+- 弹窗参数一律用 Base64 传（标题/正文），避免命令行中文编码问题。
+- Host 半部的设置项全部是 schemastery `.volatile()`：只有 volatile 字段会出现在设置表单里，且改动只更新运行中的引用、不重载插件。
+- Client 半部是手写的 `window.__ModuleLoader__.load({ id, factory })` 包（没有 TS 构建步骤）：`id` 必须是包名 `dsh-notify`，整个文件只能有这一个顶层语句，其余全部放在 `factory` 里。
+- 插件的设置命名空间 = Loader 行 id = `dsh-notify`；改了 `cordis.patch.yml` 里的 id，就要同步改 `lib/client.js` 里的 `ENTRY_ID`。
 
 ## License
 
