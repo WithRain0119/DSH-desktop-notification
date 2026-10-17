@@ -354,6 +354,24 @@ dsh --profile <临时profile> --no-open --port 19391
 
 观察两件事：控制台出现 `DSH 通知插件已加载：桌面通知=开，邮件=关`；首页 HTML 的 `window.__DSH_BOOT__` 里出现 `{"id":"dsh-desktop-notification","url":"plugins/??dsh-desktop-notification/client.js&rev=…"}`。验收完删掉临时 profile。
 
+**发行（分发）通道。** DSH 的「插件 → 添加插件」接受四种来源，其中三种适合分发给别人：
+
+| 输入框里填什么 | 装到用户侧的形态 | 依赖 | 适用 |
+|---|---|---|---|
+| 本地目录绝对路径 | pnpm `link:` 软链接到该目录 | **不会**自动安装，用户需要先 `npm install` | 开发期、同机 |
+| `.tgz` 绝对路径（`npm pack` 产物） | 从 tarball 解包安装 | 自动安装 | GitHub Release 附件，推荐 |
+| GitHub 仓库地址 | git 依赖 | 自动安装 | 仓库已公开、接受「装默认分支快照」 |
+| npm 包名（`dsh-desktop-notification`） | 正常依赖 | 自动安装 | 已 `npm publish`，安装源可选官方源或 npmmirror |
+
+打出发布产物并核对清单：
+
+```powershell
+npm pack --dry-run      # 只看清单
+npm pack                # 生成 dsh-desktop-notification-<version>.tgz
+```
+
+已实测：`npm pack` 产物 13 个文件、约 93 KB，`test/`、`node_modules/` 与日志不会进包；把该 tarball 当作依赖安装时，`@deepseek-ai/schemastery` 与 `nodemailer` 会被一并装好。两点必须保持：`package.json` 的 `dsh.bundle.patch` 指向的 `cordis.patch.yml` 必须在包内（否则安装时报 `not-a-bundle`）；升级时改 `version` 并重新打 tarball，用户侧「先卸载再安装」，DSH 目前不做自动更新。
+
 </details>
 
 **Runtime invariant:** 通知链路上的任何失败都只写日志——不抛出、不改变审批结果、不阻塞对话流程。
